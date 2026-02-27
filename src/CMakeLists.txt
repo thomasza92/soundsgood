@@ -10,32 +10,32 @@ else()
     message(STATUS "AAX Build is disabled. To enable, set AAX_SDK_PATH to your environment variable or specify -DAAX_SDK_PATH to CMake configure option.")
 endif()
 
-juce_add_plugin(ExamplePlugin
+juce_add_plugin(soundsgood
     # VERSION ...                                     # Set this if the plugin version is different to the project version
     # ICON_BIG ""   # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
-    #   ICON_SMALL "${CMAKE_SOURCE_DIR}/Assets/icon16.png " 
-    COMPANY_NAME "TomoyaMatsuura"                    # Specify the name of the plugin's author
-    COMPANY_COPYRIGHT "Tomoya Matsuura"
-    COMPANY_WEBSITE "https://matsuuratomoya.com/"
-    COMPANY_EMAIL "me@matsuuratomoya.com"
-    IS_SYNTH FALSE                       # Is this a synth or an effect?
-    # NEEDS_MIDI_INPUT TRUE/FALSE               # Does the plugin need midi input?
+    #   ICON_SMALL "${CMAKE_SOURCE_DIR}/Assets/icon16.png "
+    COMPANY_NAME "Herztek"                    # Specify the name of the plugin's author
+    COMPANY_COPYRIGHT "Herztek Limited"
+    COMPANY_WEBSITE "https://herztek.net"
+    COMPANY_EMAIL "admin@herztek.net"
+    IS_SYNTH TRUE                       # Is this a synth or an effect?
+        NEEDS_MIDI_INPUT TRUE               # Does the plugin need midi input?
     # NEEDS_MIDI_OUTPUT TRUE/FALSE              # Does the plugin need midi output?
     # IS_MIDI_EFFECT TRUE/FALSE                 # Is this plugin a MIDI effect?
     # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE    # Does the editor need keyboard focus?
     # COPY_PLUGIN_AFTER_BUILD TRUE/FALSE        # Should the plugin be installed to a default location after building?
-    PLUGIN_MANUFACTURER_CODE CCCC               # A four-character manufacturer id with at least one upper-case character
-    PLUGIN_CODE XXXX                            # A unique four-character plugin id with at least one upper-case character
-    FORMATS 
+    PLUGIN_MANUFACTURER_CODE HGTL               # A four-character manufacturer id with at least one upper-case character
+    PLUGIN_CODE Sg01                            # A unique four-character plugin id with at least one upper-case character
+    FORMATS
     # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
-            Standalone 
+            Standalone
             AU
-            # AUv3 
-            VST3 
-            # Unity 
-            ${AAX_BUILD_FLAG}               
-    VST3_CATEGORIES "Fx" 
-    AU_MAIN_TYPE "kAudioUnitType_Effect"
+            # AUv3
+            VST3
+            # Unity
+            ${AAX_BUILD_FLAG}
+    VST3_CATEGORIES "Instrument"
+    # AU_MAIN_TYPE "kAudioUnitType_Synth"
     # AU_SANDBOX_SAFE TRUE
     # AAX_CATEGORY ""
     # HARDENED_RUNTIME_ENABLED # macOS app settings
@@ -44,33 +44,34 @@ juce_add_plugin(ExamplePlugin
     # APP_SANDBOX_INHERIT
     # DESCRIPTION "" #when i set this option, the name of AAX plugin became this description(bug?)
     MICROPHONE_PERMISSION_ENABLED TRUE
-    MICROPHONE_PERMISSION_TEXT "This applicaion requires a permission to use an audio input device of your computer. By Default, Built-In microphone will be used."
+    MICROPHONE_PERMISSION_TEXT "This application requires a permission to use an audio input device of your computer. By Default, Built-In microphone will be used."
 
-    PRODUCT_NAME "ExamplePlugin")        # The name of the final 
+    PRODUCT_NAME "soundsgood")        # The name of the final
 
-target_compile_features(ExamplePlugin PUBLIC cxx_std_17)
+target_compile_features(soundsgood PUBLIC cxx_std_17)
 
 
-target_compile_definitions(ExamplePlugin
+target_compile_definitions(soundsgood
     PUBLIC
     # JUCE_WEB_BROWSER and JUCE_USE_CURL would be on by default, but you might not need them.
     JUCE_WEB_BROWSER=0  # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
     JUCE_USE_CURL=0     # If you remove this, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
     JUCE_VST3_CAN_REPLACE_VST2=0
     # JUCE_DISPLAY_SPLASH_SCREEN=0 #if your plugin is distributed with GPL license or paid
+    JUCEPlugin_AUMainType=kAudioUnitType_Synth
 )
 
 juce_add_binary_data(JuceLogoBinary
-SOURCES 
+SOURCES
 ${CMAKE_SOURCE_DIR}/assets/juce-logo.svg
 )
 
-target_sources(ExamplePlugin PRIVATE
+target_sources(soundsgood PRIVATE
     PluginEditor.cpp
     PluginProcessor.cpp
 )
 
-target_link_libraries(ExamplePlugin PUBLIC
+target_link_libraries(soundsgood PUBLIC
 JuceLogoBinary
 juce::juce_audio_basics
 juce::juce_audio_devices
@@ -90,4 +91,4 @@ juce::juce_opengl
 juce::juce_product_unlocking
 )
 
-juce_generate_juce_header(ExamplePlugin)
+juce_generate_juce_header(soundsgood)

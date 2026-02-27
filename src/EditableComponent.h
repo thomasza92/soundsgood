@@ -1,14 +1,14 @@
 #pragma once
 #include <JuceHeader.h>
 
-class EditableComponent : public Component{
-
-EditableComponent():Component(){
-
-    addAndMakeVisible(border);
-}
-
+class EditableComponent : public juce::Component {
+ public:
+  EditableComponent() : border(this, nullptr) {
 #if JUCE_DEBUG
-    ResizableBorderComponent border;
+    addAndMakeVisible(border);
 #endif
+  }
+
+ private:
+  juce::ResizableBorderComponent border;
 };
