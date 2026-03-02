@@ -67,12 +67,16 @@ ${CMAKE_SOURCE_DIR}/assets/juce-logo.svg
 )
 
 target_sources(soundsgood PRIVATE
+    CS30Filter.cpp
+    CS30Oscillator.cpp
+    CS30Voice.cpp
     PluginEditor.cpp
     PluginProcessor.cpp
 )
 
 target_link_libraries(soundsgood PUBLIC
 JuceLogoBinary
+chowdsp_wdf
 juce::juce_audio_basics
 juce::juce_audio_devices
 juce::juce_audio_formats
@@ -80,15 +84,12 @@ juce::juce_audio_plugin_client
 juce::juce_audio_processors
 juce::juce_audio_utils
 juce::juce_core
-juce::juce_cryptography
 juce::juce_data_structures
 juce::juce_dsp
 juce::juce_events
 juce::juce_graphics
 juce::juce_gui_basics
 juce::juce_gui_extra
-juce::juce_opengl
-juce::juce_product_unlocking
 )
 
 juce_generate_juce_header(soundsgood)

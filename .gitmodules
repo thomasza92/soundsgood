@@ -2,9 +2,6 @@
 	path = lib/JUCE
 	url = https://github.com/juce-framework/JUCE.git
 	branch = master
-[submodule "lib/showdsp_wdf"]
-	path = lib/showdsp_wdf
-	url = https://github.com/Chowdhury-DSP/chowdsp_wdf.git
 [submodule "lib/chowdsp_wdf"]
 	path = lib/chowdsp_wdf
 	url = https://github.com/Chowdhury-DSP/chowdsp_wdf.git
