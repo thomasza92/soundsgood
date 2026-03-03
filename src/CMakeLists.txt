@@ -67,9 +67,7 @@ ${CMAKE_SOURCE_DIR}/assets/juce-logo.svg
 )
 
 target_sources(soundsgood PRIVATE
-    CS30Filter.cpp
-    CS30Oscillator.cpp
-    CS30Voice.cpp
+    WPPMVoice.cpp
     PluginEditor.cpp
     PluginProcessor.cpp
 )

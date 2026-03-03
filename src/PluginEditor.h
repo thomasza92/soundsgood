@@ -1,44 +1,24 @@
 /*
   ==============================================================================
     PluginEditor.h
-    Soundsgood — CS-30 full front panel emulation UI.
-    Two-row layout matching the physical CS-30 panel order.
-    Top: PITCH, VCO1, VCO2, VCF1, VCF2, VCA1, VCA2, TRIGGER, SEQUENCER
-    Bottom: EG1, EG2, EG3, LFO, PORTAMENTO, PITCH BEND, OUTPUT
+    Soundsgood -- WPPM synthesiser editor.
+
+    Layout (4 rows):
+      Row 1 — WPPM waveform viz + Split/Pulse1/Link/Pulse2
+      Row 2 — Sub + Unison + Filter
+      Row 3 — LFO [1|2] tabs + Mod Matrix + Envelope [Amp|Mod] tabs
+      Row 4 — Analog + Quality + Output (Vol + Scope)
+
+    Tab system inspired by Serum: clickable tab buttons in section
+    headers switch between LFO1/LFO2 and Env1(Amp)/Env2(Mod).
   ==============================================================================
 */
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <array>
 
 #include "PluginProcessor.h"
-
-//==============================================================================
-// Real-time waveform scope display (placed in the OUTPUT section)
-class WaveformDisplay : public juce::Component {
- public:
-  void updateFromProcessor(const SoundsgoodAudioProcessor& proc);
-  void paint(juce::Graphics& g) override;
-
- private:
-  static constexpr int kDisplaySamples = 256;
-  float displayBuffer_[kDisplaySamples] = {};
-};
-
-//==============================================================================
-// ADSR curve display for EG sections (reads knob values, draws computed shape)
-class EGCurveDisplay : public juce::Component {
- public:
-  void setParameters(float attack, float decay, float sustain, float release);
-  void paint(juce::Graphics& g) override;
-
- private:
-  float attack_ = 0.01f;
-  float decay_ = 0.3f;
-  float sustain_ = 0.7f;
-  float release_ = 0.5f;
-};
 
 //==============================================================================
 class SoundsgoodAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -52,65 +32,103 @@ class SoundsgoodAudioProcessorEditor : public juce::AudioProcessorEditor,
 
  private:
   void timerCallback() override;
+  void drawScope(juce::Graphics& g, juce::Rectangle<int> area);
+  void drawWPPMWaveform(juce::Graphics& g, juce::Rectangle<int> area);
+  void drawEnvelopeCurve(juce::Graphics& g, juce::Rectangle<int> area, float a,
+                         float d, float s, float r);
+  void updateWPPMWaveform();
+  void switchLFOTab(int tab);
+  void switchEnvTab(int tab);
 
-  SoundsgoodAudioProcessor& audioProcessor;
+  // Helpers
+  using SliderAttach = juce::AudioProcessorValueTreeState::SliderAttachment;
+  using ButtonAttach = juce::AudioProcessorValueTreeState::ButtonAttachment;
+  using ComboAttach = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
-  // ── Attachment aliases ──
-  using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;
-  using ComboAtt = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
-  using ButtonAtt = juce::AudioProcessorValueTreeState::ButtonAttachment;
-
-  // ── Control type tag ──
-  enum class CtrlType : std::uint8_t { Knob, Combo, Toggle };
-
-  // ── Per-control layout info ──
-  struct CtrlInfo {
-    juce::Component* comp;
-    juce::String label;
-    CtrlType type;
-    int section;
-    int col;
-    int row;
+  struct LabelledKnob {
+    juce::Slider slider;
+    juce::Label label;
+    std::unique_ptr<SliderAttach> attachment;
   };
-  std::vector<CtrlInfo> controls_;
 
-  // ── Section layout info ──
-  struct SectionInfo {
-    juce::String name;
-    juce::Colour colour;
-    int panelRow;  // 0=top, 1=bottom
-    int x;
-    int width;
+  struct LabelledCombo {
+    juce::ComboBox combo;
+    juce::Label label;
+    std::unique_ptr<ComboAttach> attachment;
   };
-  std::vector<SectionInfo> sections_;
 
-  // ── Owned components and attachments ──
-  juce::OwnedArray<juce::Slider> sliders_;
-  juce::OwnedArray<juce::ComboBox> combos_;
-  juce::OwnedArray<juce::ToggleButton> toggles_;
-  juce::OwnedArray<SliderAtt> sliderAtts_;
-  juce::OwnedArray<ComboAtt> comboAtts_;
-  juce::OwnedArray<ButtonAtt> buttonAtts_;
+  void setupKnob(LabelledKnob& k, const juce::String& paramId,
+                 const juce::String& text);
+  void setupCombo(LabelledCombo& c, const juce::String& paramId,
+                  const juce::String& text, const juce::StringArray& choices);
 
-  // ── Helpers ──
-  void addKnob(const juce::String& paramId, const juce::String& label,
-               int section, int col, int row);
-  void addCombo(const juce::String& paramId, const juce::String& label,
-                int section, int col, int row);
-  void addToggle(const juce::String& paramId, const juce::String& label,
-                 int section, int col, int row);
+  SoundsgoodAudioProcessor& processorRef;
 
-  // ── Sequencer step LED tracking ──
-  // Pointers to the 8 step knob components (for LED positioning)
-  juce::Component* stepKnobComps_[8] = {};
+  // --- WPPM knobs ---
+  LabelledKnob splitKnob;
+  LabelledKnob ratio1Knob, depth1Knob, phase1Knob;
+  LabelledKnob ratio2Knob, depth2Knob, phase2Knob;
+  juce::ToggleButton linkButton{"Link P1=P2"};
+  std::unique_ptr<ButtonAttach> linkAttach;
 
-  // ── Waveform visualizer ──
-  WaveformDisplay scopeDisplay_;
+  // --- Sub oscillator ---
+  LabelledCombo subOctaveCombo;
+  LabelledKnob subMixKnob;
 
-  // ── EG curve displays ──
-  EGCurveDisplay egCurve1_;
-  EGCurveDisplay egCurve2_;
-  EGCurveDisplay egCurve3_;
+  // --- Unison ---
+  LabelledKnob unisonVoicesKnob, unisonDetuneKnob, unisonSpreadKnob;
+
+  // --- Filter ---
+  LabelledCombo filterModeCombo;
+  LabelledKnob filterCutoffKnob, filterResonanceKnob;
+  LabelledKnob filterKeyTrackKnob, filterEnvAmountKnob;
+
+  // --- LFO 1 ---
+  LabelledCombo lfoShapeCombo, lfoDestCombo;
+  LabelledKnob lfoRateKnob, lfoDepthKnob;
+
+  // --- LFO 2 ---
+  LabelledCombo lfo2ShapeCombo, lfo2DestCombo;
+  LabelledKnob lfo2RateKnob, lfo2DepthKnob;
+
+  // LFO tab buttons
+  juce::TextButton lfoTab1{"1"}, lfoTab2{"2"};
+  int activeLFOTab_ = 0;
+
+  // --- Modulation matrix ---
+  LabelledKnob velToDKnob, velToDepthKnob;
+  LabelledKnob atToDKnob, atToDepthKnob;
+
+  // --- Envelope 1 (Amp) ---
+  LabelledKnob attackKnob, decayKnob, sustainKnob, releaseKnob;
+
+  // --- Envelope 2 (Mod) ---
+  LabelledKnob env2AttackKnob, env2DecayKnob, env2SustainKnob, env2ReleaseKnob;
+  LabelledCombo env2DestCombo;
+  LabelledKnob env2AmountKnob;
+
+  // Envelope tab buttons
+  juce::TextButton envTab1{"Amp"}, envTab2{"Mod"};
+  int activeEnvTab_ = 0;
+  juce::Rectangle<int> envelopeCurveBounds_;
+
+  // --- Analog stage ---
+  LabelledKnob analogDriveKnob, analogMixKnob;
+
+  // --- Quality ---
+  LabelledCombo qualityCombo;
+
+  // --- Output ---
+  LabelledKnob volumeKnob;
+
+  // WPPM waveform preview
+  static constexpr int kWPPMVizSize = 256;
+  std::array<float, kWPPMVizSize> wppmWaveform_{};
+  juce::Rectangle<int> wppmVizBounds_;
+
+  // Output scope
+  std::array<float, SoundsgoodAudioProcessor::kScopeSize> scopeData_{};
+  juce::Rectangle<int> scopeBounds_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SoundsgoodAudioProcessorEditor)
 };

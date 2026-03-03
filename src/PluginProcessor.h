@@ -1,19 +1,29 @@
 /*
   ==============================================================================
     PluginProcessor.h
-    Soundsgood — Yamaha CS-30 full emulation.
-    Polyphonic synthesiser with WDF analog circuit modeling.
-    75 parameters covering every CS-30 front panel control.
+    Soundsgood -- WPPM (Windowed Piecewise Phase Modulation) synthesiser.
+
+    Parameters (44 total):
+      WPPM: d, R1, I1, P1, R2, I2, P2, link
+      Sub:  subOctave, subMix
+      Unison: unisonVoices, unisonDetune, unisonSpread
+      Filter: filterMode, filterCutoff, filterResonance, filterKeyTrack,
+              filterEnvAmount
+      LFO1: lfoShape, lfoRate, lfoDepth, lfoDest
+      LFO2: lfo2Shape, lfo2Rate, lfo2Depth, lfo2Dest
+      Mod: velToD, velToDepth, atToD, atToDepth
+      Env1: attack, decay, sustain, release
+      Env2: env2Attack, env2Decay, env2Sustain, env2Release, env2Dest,
+            env2Amount
+      Analog: analogDrive, analogMix
+      Quality: oversampleMode
+      Output: volume
   ==============================================================================
 */
 
 #pragma once
 
 #include <JuceHeader.h>
-
-#include "CS30LFO.h"
-#include "CS30Sequencer.h"
-#include "CS30Voice.h"  // IWYU pragma: keep (used by .cpp for voice types)
 
 //==============================================================================
 class SoundsgoodAudioProcessor : public juce::AudioProcessor {
@@ -54,154 +64,97 @@ class SoundsgoodAudioProcessor : public juce::AudioProcessor {
   void setStateInformation(const void* data, int sizeInBytes) override;
 
   //==============================================================================
-  juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
-
-  // Expose current sequencer step for LED display in editor
-  int getCurrentSequencerStep() const { return sequencer_.getCurrentStep(); }
-  bool isSequencerRunning() const { return seqRunningParam->load() >= 0.5f; }
-  int getSequencerNumSteps() const {
-    return static_cast<int>(seqStepsParam->load()) + 1;
-  }
-
   // Scope buffer for waveform visualizer
   static constexpr int kScopeSize = 512;
-  const float* getScopeData() const { return scopeBuffer_; }
-  int getScopeWritePos() const {
+  static constexpr int maxVoices = 8;
+
+  // --- Accessors (editor reads these) ---
+  juce::AudioProcessorValueTreeState& getAPVTS() noexcept { return apvts_; }
+  const float* getScopeBuffer() const noexcept { return scopeBuffer_; }
+  int getScopeWritePos() const noexcept {
     return scopeWritePos_.load(std::memory_order_relaxed);
   }
 
-  static constexpr int maxVoices = 8;
-
  private:
+  juce::AudioProcessorValueTreeState apvts_;
+
+  float scopeBuffer_[kScopeSize] = {};
+  std::atomic<int> scopeWritePos_{0};
   //==============================================================================
   juce::Synthesiser synth;
-  CS30LFO lfo_;
-  CS30Sequencer sequencer_;
-
-  // Sequencer auto-voice: plays a base note when sequencer is running
-  bool seqNoteActive_ = false;
-
-  // Mono mode: track the single user voice and current note
-  CS30Voice* monoVoice_ = nullptr;
-  int monoCurrentNote_ = -1;
-  static constexpr int kSeqMidiChannel = 16;
-  static constexpr int kSeqMidiNote = 60;  // C4
 
   static juce::AudioProcessorValueTreeState::ParameterLayout
   createParameterLayout();
 
-  juce::AudioProcessorValueTreeState apvts;
+  // ===== Cached parameter pointers =====
 
-  // ── Cached parameter pointers: 75 total ──
+  // WPPM oscillator (7 + link)
+  std::atomic<float>* dParam = nullptr;
+  std::atomic<float>* r1Param = nullptr;
+  std::atomic<float>* i1Param = nullptr;
+  std::atomic<float>* p1Param = nullptr;
+  std::atomic<float>* r2Param = nullptr;
+  std::atomic<float>* i2Param = nullptr;
+  std::atomic<float>* p2Param = nullptr;
+  std::atomic<float>* linkParam = nullptr;
 
-  // PITCH (4)
-  std::atomic<float>* pitchTuneParam = nullptr;
-  std::atomic<float>* pitchDetuneParam = nullptr;
-  std::atomic<float>* pitchEGDepthParam = nullptr;
-  std::atomic<float>* pitchEGSelParam = nullptr;
+  // Sub oscillator (2)
+  std::atomic<float>* subOctaveParam = nullptr;
+  std::atomic<float>* subMixParam = nullptr;
 
-  // VCO 1 (8)
-  std::atomic<float>* vco1FeetParam = nullptr;
-  std::atomic<float>* vco1PWParam = nullptr;
-  std::atomic<float>* vco1ModVCO2Param = nullptr;
-  std::atomic<float>* vco1PWMParam = nullptr;
-  std::atomic<float>* vco1FuncParam = nullptr;
-  std::atomic<float>* vco1DepthParam = nullptr;
-  std::atomic<float>* vco1SrcParam = nullptr;
-  std::atomic<float>* vco1EGSelParam = nullptr;
+  // Unison (3)
+  std::atomic<float>* unisonVoicesParam = nullptr;
+  std::atomic<float>* unisonDetuneParam = nullptr;
+  std::atomic<float>* unisonSpreadParam = nullptr;
 
-  // VCO 2 (7)
-  std::atomic<float>* vco2FeetParam = nullptr;
-  std::atomic<float>* vco2PWParam = nullptr;
-  std::atomic<float>* vco2PWMParam = nullptr;
-  std::atomic<float>* vco2FuncParam = nullptr;
-  std::atomic<float>* vco2DepthParam = nullptr;
-  std::atomic<float>* vco2SrcParam = nullptr;
-  std::atomic<float>* vco2EGSelParam = nullptr;
+  // Filter (5)
+  std::atomic<float>* filterModeParam = nullptr;
+  std::atomic<float>* filterCutoffParam = nullptr;
+  std::atomic<float>* filterResonanceParam = nullptr;
+  std::atomic<float>* filterKeyTrackParam = nullptr;
+  std::atomic<float>* filterEnvAmountParam = nullptr;
 
-  // VCF 1 (8)
-  std::atomic<float>* vcf1LevelParam = nullptr;
-  std::atomic<float>* vcf1CutoffParam = nullptr;
-  std::atomic<float>* vcf1KBDFollowParam = nullptr;
-  std::atomic<float>* vcf1ResoParam = nullptr;
-  std::atomic<float>* vcf1ModDepthParam = nullptr;
-  std::atomic<float>* vcf1EGDepthParam = nullptr;
-  std::atomic<float>* vcf1ModFuncParam = nullptr;
-  std::atomic<float>* vcf1EGSelParam = nullptr;
+  // LFO (4)
+  std::atomic<float>* lfoShapeParam = nullptr;
+  std::atomic<float>* lfoRateParam = nullptr;
+  std::atomic<float>* lfoDepthParam = nullptr;
+  std::atomic<float>* lfoDestParam = nullptr;
 
-  // VCF 2 (8)
-  std::atomic<float>* vcf2LevelParam = nullptr;
-  std::atomic<float>* vcf2CutoffParam = nullptr;
-  std::atomic<float>* vcf2KBDFollowParam = nullptr;
-  std::atomic<float>* vcf2ResoParam = nullptr;
-  std::atomic<float>* vcf2ModDepthParam = nullptr;
-  std::atomic<float>* vcf2EGDepthParam = nullptr;
-  std::atomic<float>* vcf2ModFuncParam = nullptr;
-  std::atomic<float>* vcf2EGSelParam = nullptr;
+  // LFO 2 (4)
+  std::atomic<float>* lfo2ShapeParam = nullptr;
+  std::atomic<float>* lfo2RateParam = nullptr;
+  std::atomic<float>* lfo2DepthParam = nullptr;
+  std::atomic<float>* lfo2DestParam = nullptr;
 
-  // VCA 1 (6)
-  std::atomic<float>* vca1FilterTypeParam = nullptr;
-  std::atomic<float>* vca1VCF1Param = nullptr;
-  std::atomic<float>* vca1VCF2Param = nullptr;
-  std::atomic<float>* vca1ModDepthParam = nullptr;
-  std::atomic<float>* vca1VCO1Param = nullptr;
-  std::atomic<float>* vca1ModFuncParam = nullptr;
+  // Modulation routing (4)
+  std::atomic<float>* velToDParam = nullptr;
+  std::atomic<float>* velToDepthParam = nullptr;
+  std::atomic<float>* atToDParam = nullptr;
+  std::atomic<float>* atToDepthParam = nullptr;
 
-  // VCA 2 (4)
-  std::atomic<float>* vca2NormModParam = nullptr;
-  std::atomic<float>* vca2ModDepthParam = nullptr;
-  std::atomic<float>* vca2RMOSrcParam = nullptr;
-  std::atomic<float>* vca2ModFuncParam = nullptr;
+  // Envelope ADSR (4)
+  std::atomic<float>* attackParam = nullptr;
+  std::atomic<float>* decayParam = nullptr;
+  std::atomic<float>* sustainParam = nullptr;
+  std::atomic<float>* releaseParam = nullptr;
 
-  // TRIGGER (2)
-  std::atomic<float>* trigModeParam = nullptr;
-  std::atomic<float>* trigTypeParam = nullptr;
+  // Envelope 2 — mod (6)
+  std::atomic<float>* env2AttackParam = nullptr;
+  std::atomic<float>* env2DecayParam = nullptr;
+  std::atomic<float>* env2SustainParam = nullptr;
+  std::atomic<float>* env2ReleaseParam = nullptr;
+  std::atomic<float>* env2DestParam = nullptr;
+  std::atomic<float>* env2AmountParam = nullptr;
 
-  // SEQUENCER (11)
-  std::atomic<float>* seqClockParam = nullptr;
-  std::atomic<float>* seqRunningParam = nullptr;
-  std::atomic<float>* seqHoldParam = nullptr;
-  std::atomic<float>* seqStepsParam = nullptr;
-  std::atomic<float>* seqKnobParams[8] = {};
+  // Analog stage (2)
+  std::atomic<float>* analogDriveParam = nullptr;
+  std::atomic<float>* analogMixParam = nullptr;
 
-  // EG 1 (4)
-  std::atomic<float>* eg1AtkParam = nullptr;
-  std::atomic<float>* eg1DecParam = nullptr;
-  std::atomic<float>* eg1SusParam = nullptr;
-  std::atomic<float>* eg1RelParam = nullptr;
+  // Quality (1)
+  std::atomic<float>* oversampleModeParam = nullptr;
 
-  // EG 2 (4)
-  std::atomic<float>* eg2AtkParam = nullptr;
-  std::atomic<float>* eg2DecParam = nullptr;
-  std::atomic<float>* eg2SusParam = nullptr;
-  std::atomic<float>* eg2RelParam = nullptr;
-
-  // EG 3 (4)
-  std::atomic<float>* eg3AtkParam = nullptr;
-  std::atomic<float>* eg3DecParam = nullptr;
-  std::atomic<float>* eg3SusParam = nullptr;
-  std::atomic<float>* eg3RelParam = nullptr;
-
-  // LFO (3)
-  std::atomic<float>* lfoEGSelParam = nullptr;
-  std::atomic<float>* lfoEGDepthParam = nullptr;
-  std::atomic<float>* lfoSpeedParam = nullptr;
-
-  // PORTAMENTO (1)
-  std::atomic<float>* portamentoParam = nullptr;
-
-  // PITCH BEND (2)
-  std::atomic<float>* pbLimiterParam = nullptr;
-  std::atomic<float>* pbRangeParam = nullptr;
-
-  // OUTPUT (3)
-  std::atomic<float>* outBalanceParam = nullptr;
-  std::atomic<float>* outVolumeParam = nullptr;
-  std::atomic<float>* outMonoParam = nullptr;
-
-  // Scope ring buffer (audio thread writes, GUI thread reads)
-  float scopeBuffer_[kScopeSize] = {};
-  std::atomic<int> scopeWritePos_{0};
+  // Output (1)
+  std::atomic<float>* volumeParam = nullptr;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SoundsgoodAudioProcessor)
 };
